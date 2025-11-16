@@ -3,19 +3,21 @@
     "deposit": [
       {
         "id": "1",
-        "status": "occupied"
+        "status": "empty",
+        "current_ticket": null
       },
       {
         "id": "2",
-        "status": "occupied"
+        "status": "empty",
+        "current_ticket": null
       },
       {
         "id": "3",
-        "status": "occupied"
+        "status": "empty"
       },
       {
         "id": "4",
-        "status": "occupied"
+        "status": "empty"
       },
       {
         "id": "5",
@@ -82,7 +84,77 @@
       {
         "id": "D-1",
         "status": "done"
+      },
+      {
+        "id": "D-2",
+        "status": "done"
+      },
+      {
+        "id": "D-3",
+        "status": "done"
+      },
+      {
+        "id": "D-4",
+        "status": "done"
+      },
+      {
+        "id": "D-5",
+        "status": "done",
+        "desk": null
+      },
+      {
+        "id": "D-6",
+        "status": "done",
+        "desk": null
+      },
+      {
+        "id": "D-7",
+        "status": "done",
+        "desk": null
+      },
+      {
+        "id": "D-8",
+        "status": "done",
+        "desk": null
+      },
+      {
+        "id": "D-9",
+        "status": "waiting"
+      },
+      {
+        "id": "D-10",
+        "status": "done",
+        "desk": null
+      },
+      {
+        "id": "D-11",
+        "status": "waiting"
+      },
+      {
+        "id": "D-12",
+        "status": "waiting"
+      },
+      {
+        "id": "D-13",
+        "status": "waiting"
+      },
+      {
+        "id": "D-14",
+        "status": "waiting"
+      }
+    ],
+    "withdrawal": [
+      {
+        "id": "W-1",
+        "status": "waiting"
+      }
+    ],
+    "support": [
+      {
+        "id": "S-1",
+        "status": "waiting"
       }
     ]
-  }
+  },
+  "sessions": {}
 }

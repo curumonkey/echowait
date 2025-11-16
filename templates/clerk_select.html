@@ -89,20 +89,49 @@ function loadDesks() {
 
   if (!stateData.desks[svc]) return;
 
+  // Assume backend includes currentSession in /state response
+  const currentSession = stateData.currentSession;
+
   stateData.desks[svc].forEach(desk => {
     const box = document.createElement("div");
     box.classList.add("desk-box");
-    box.classList.add(desk.status === "empty" ? "desk-empty" : "desk-occupied");
-    box.innerHTML = `<div>${desk.id}</div><div class="desk-status">${desk.status}</div>`;
-    if (desk.status === "empty") {
+
+    // Check if desk is occupied
+    if (desk.status === "occupied") {
+      // Find which session owns this desk
+      let ownerSession = null;
+      for (const [sessId, sessInfo] of Object.entries(stateData.sessions || {})) {
+        if (sessInfo.service === svc && sessInfo.desk_id === desk.id) {
+          ownerSession = sessId;
+          break;
+        }
+      }
+
+      if (ownerSession && ownerSession === currentSession) {
+        // This browser owns the desk → show "Back to desk"
+        box.classList.add("desk-empty"); // make it look active
+        box.innerHTML = `<div>${desk.id}</div><div class="desk-status">Back to desk</div>`;
+        box.onclick = () => {
+          window.location.href = `/clerk/${encodeURIComponent(svc)}/${encodeURIComponent(desk.id)}?status=occupied`;
+        };
+      } else {
+        // Occupied by someone else → disabled
+        box.classList.add("desk-occupied");
+        box.innerHTML = `<div>${desk.id}</div><div class="desk-status">occupied</div>`;
+      }
+    } else {
+      // Desk is empty → selectable
+      box.classList.add("desk-empty");
+      box.innerHTML = `<div>${desk.id}</div><div class="desk-status">empty</div>`;
       box.onclick = () => {
-        // Redirect with ?status=selected
         window.location.href = `/clerk/${encodeURIComponent(svc)}/${encodeURIComponent(desk.id)}?status=selected`;
       };
     }
+
     desksDiv.appendChild(box);
   });
 }
+
 
 // Initialize on page load
 init();

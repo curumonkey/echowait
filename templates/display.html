@@ -30,57 +30,21 @@
       box-shadow: 0 6px 16px rgba(0,0,0,0.35);
     }
 
-    /* Big centered number */
-    .ticket-number {
-      font-weight: 800;
-      font-size: 2.2rem;
-      line-height: 1.1;
-      letter-spacing: 0.5px;
-    }
-    /* Below number: desk info */
-    .ticket-sub {
-      margin-top: 8px;
-      font-size: 0.95rem;
-      opacity: 0.95;
-    }
-    .ticket-meta {
-      margin-top: 4px;
-      font-size: 0.85rem;
-      opacity: 0.8;
-    }
+    .ticket-number { font-weight: 800; font-size: 2.2rem; line-height: 1.1; letter-spacing: 0.5px; }
+    .ticket-sub { margin-top: 8px; font-size: 0.95rem; opacity: 0.95; }
+    .ticket-meta { margin-top: 4px; font-size: 0.85rem; opacity: 0.8; }
 
-    /* Status color-coding */
-    .waiting { background: #14213d; color: #9ae6b4; }    /* Waiting in queue */
-    .assigned { background: #1b2a4a; color: #63b3ed; }   /* Called, not yet confirmed */
-    .serving { background: #2d3748; color: #f6e05e; }    /* Being served */
-    .done { display: none; }                              /* Completed: hidden/removed */
-    .empty { background: #3b2f2f; color: #f6ad55; }       /* Info boxes */
+    .waiting { background: #14213d; color: #9ae6b4; }
+    .assigned { background: #1b2a4a; color: #63b3ed; }
+    .serving { background: #2d3748; color: #f6e05e; }
+    .done { display: none; }
+    .empty { background: #3b2f2f; color: #f6ad55; }
 
-    /* Blink only for assigned (called) */
-    .blink {
-      animation: blink 1s infinite;
-    }
-    @keyframes blink {
-      0% { opacity: 1; }
-      50% { opacity: 0.35; }
-      100% { opacity: 1; }
-    }
+    .blink { animation: blink 1s infinite; }
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.35; } 100% { opacity: 1; } }
 
-    /* Section heading */
-    .section-title {
-      margin: 0 0 12px 4px;
-      font-size: 1.05rem;
-      opacity: 0.9;
-    }
-
-    /* Container */
-    .container-frame {
-      border: 1px solid #24314f;
-      border-radius: 12px;
-      padding: 16px;
-      min-height: 260px;
-      background: rgba(12, 18, 32, 0.6);
-    }
+    .section-title { margin: 0 0 12px 4px; font-size: 1.05rem; opacity: 0.9; }
+    .container-frame { border: 1px solid #24314f; border-radius: 12px; padding: 16px; min-height: 260px; background: rgba(12, 18, 32, 0.6); }
   </style>
 </head>
 <body>
@@ -102,13 +66,11 @@
 const messagesEl = document.getElementById("messages");
 const updatesEl = document.getElementById("updates");
 
-// Create or update a ticket box for a given ticket id
 function upsertTicketBox({ id, service, status, desk = null, timestamp = null }) {
   const elId = `ticket-${id}`;
   let box = document.getElementById(elId);
   const isNew = !box;
 
-  // If status is "done", remove the element if it exists and return
   if (status === "done") {
     if (box && box.parentNode) box.parentNode.removeChild(box);
     logUpdate(`[${timestamp || "--:--"}] Ticket ${id} for ${prettyService(service)} completed`);
@@ -122,18 +84,12 @@ function upsertTicketBox({ id, service, status, desk = null, timestamp = null })
     messagesEl.appendChild(box);
   }
 
-  // Reset base class
   box.className = "ticket-box";
-
-  // Apply status styles
   if (status === "waiting") box.classList.add("waiting");
   if (status === "assigned") box.classList.add("assigned", "blink");
   if (status === "serving") box.classList.add("serving");
-
-  // Ensure blink only when assigned
   if (status !== "assigned") box.classList.remove("blink");
 
-  // Content: big number in center + desk info below
   const numberHTML = `<div class="ticket-number">${id}</div>`;
   let subHTML = "";
   if (status === "waiting") {
@@ -147,12 +103,9 @@ function upsertTicketBox({ id, service, status, desk = null, timestamp = null })
   }
 
   box.innerHTML = `${numberHTML}${subHTML}`;
-
-  // Keep scroll pinned to bottom on first insert
   if (isNew) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-// Log concise updates in the second panel
 function logUpdate(text, type = "empty") {
   const row = document.createElement("div");
   row.className = `ticket-box ${type}`;
@@ -164,7 +117,6 @@ function logUpdate(text, type = "empty") {
 }
 
 function prettyService(s) {
-  // Capitalize and make user-friendly
   return String(s || "").replace(/_/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
 }
 
@@ -174,14 +126,15 @@ fetch("/state")
   .then(data => {
     for (const [service, tickets] of Object.entries(data.tickets || {})) {
       tickets.forEach(t => {
-        // Do not show completed tickets on boot
         if (t.status !== "done") {
+          // now desk is persisted in ticket JSON
           upsertTicketBox({ id: t.id, service, status: t.status, desk: t.desk || null });
         }
       });
     }
     logUpdate("State loaded from server", "empty");
   });
+
 
 // Live updates via WebSocket
 const clientId = Date.now();
@@ -192,7 +145,6 @@ ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   const ts = data.timestamp;
 
-  // Normalize server events into statuses and update UI
   if (data.type === "issued") {
     upsertTicketBox({ id: data.ticket, service: data.service, status: "waiting", timestamp: ts });
     logUpdate(`[${ts}] Ticket ${data.ticket} issued for ${prettyService(data.service)}`);
@@ -209,13 +161,11 @@ ws.onmessage = (event) => {
   }
 };
 
-// Keep-alive ping
 setInterval(() => {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send("__ping__");
   }
 }, 25000);
 </script>
-
 </body>
 </html>

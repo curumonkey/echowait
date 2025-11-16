@@ -17,7 +17,7 @@
     50% { opacity: 0.3; }
     100% { opacity: 1; }
   }
-</style>
+  </style>
 </head>
 <body>
 <div class="container py-4">
@@ -36,8 +36,10 @@
 
   <div class="mt-3" id="feedback"></div>
 </div>
+
 <script>
 const parts = window.location.pathname.split("/");
+// URL format: /clerk/{service}/{desk_id}/occupied
 const service = decodeURIComponent(parts[2]);
 const desk = decodeURIComponent(parts[3]);
 document.getElementById("svc").textContent = service;
@@ -51,6 +53,31 @@ function setButtons(nextEnabled, confirmEnabled, doneEnabled) {
   document.getElementById("btnDone").disabled = !doneEnabled;
 }
 
+// --- Restore state after refresh ---
+async function initDesk() {
+  try {
+    const res = await fetch(`/clerk_state?service=${encodeURIComponent(service)}&desk=${encodeURIComponent(desk)}`);
+    const state = await res.json();
+
+    if (state.serving) {
+      currentTicket = state.serving;
+      document.getElementById("status").textContent =
+        `Serving Ticket ${currentTicket} at ${service} Desk ${desk}.`;
+      setButtons(false, false, true); // only Done enabled
+    } else if (state.assigned) {
+      currentTicket = state.assigned;
+      document.getElementById("status").textContent =
+        `Please proceed to ${service} Desk ${desk}: Ticket ${currentTicket}`;
+      setButtons(true, true, false); // Next + Confirm enabled
+    } else {
+      document.getElementById("status").textContent = "No ticket assigned.";
+      setButtons(true, false, false); // only Next enabled
+    }
+  } catch (err) {
+    console.error("Failed to load clerk state", err);
+  }
+}
+
 function callNext() {
   const fb = document.getElementById("feedback");
   fetch(`/next?service=${encodeURIComponent(service)}&desk=${encodeURIComponent(desk)}`)
@@ -61,11 +88,17 @@ function callNext() {
         currentTicket = null;
         document.getElementById("status").textContent = "No ticket assigned.";
         setButtons(true, false, false);
+      } else if (data.status === "busy") {
+        currentTicket = data.ticket; // backend now always provides ticket
+        document.getElementById("status").textContent =
+          `Ticket ${currentTicket} is already assigned to another desk.`;
+        fb.innerHTML = `<div class="alert alert-warning">${data.message}</div>`;
+        setButtons(true, false, false);
       } else {
         currentTicket = data.ticket;
-        document.getElementById("status").textContent = `Please proceed to ${service} Desk ${desk}: Ticket ${currentTicket}`;
+        document.getElementById("status").textContent =
+          `Please proceed to ${service} Desk ${desk}: Ticket ${currentTicket}`;
         fb.innerHTML = `<div class="alert alert-info">Called <strong>${currentTicket}</strong> to Desk ${desk}. Awaiting confirmation.</div>`;
-        // Enable Confirm; keep Next enabled until confirmation? Spec says disable Next on confirm.
         setButtons(true, true, false);
       }
     })
@@ -81,9 +114,9 @@ function confirmServing() {
     .then(res => res.json())
     .then(data => {
       if (data.status === "ok") {
-        document.getElementById("status").textContent = `Serving Ticket ${currentTicket} at ${service} Desk ${desk}.`;
+        document.getElementById("status").textContent =
+          `Serving Ticket ${currentTicket} at ${service} Desk ${desk}.`;
         fb.innerHTML = `<div class="alert alert-success">Ticket <strong>${currentTicket}</strong> is now being served.</div>`;
-        // Disable Next while serving; enable Done
         setButtons(false, false, true);
       } else {
         fb.innerHTML = `<div class="alert alert-warning">${data.message || "Unable to confirm."}</div>`;
@@ -104,7 +137,6 @@ function finishServing() {
         fb.innerHTML = `<div class="alert alert-light">Completed Ticket <strong>${currentTicket}</strong>. Ready for next.</div>`;
         document.getElementById("status").textContent = "No ticket assigned.";
         currentTicket = null;
-        // Re-enable Next; disable Confirm/Done
         setButtons(true, false, false);
       } else {
         fb.innerHTML = `<div class="alert alert-warning">${data.message || "Unable to finish."}</div>`;
@@ -115,19 +147,8 @@ function finishServing() {
     });
 }
 
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  const div = document.createElement("div");
-  div.className = `ticket-box ${data.type || ""}`;
-  const ts = `[${data.timestamp}] `;
-  if (data.type === "called") {
-    div.innerHTML = `${ts} Please proceed to <strong>${data.service}</strong> Desk <strong>${data.desk}</strong>: Ticket <strong>${data.ticket}</strong>`;
-  } else if (data.type === "serving") {
-    div.innerHTML = `${ts} Now serving Ticket <strong>${data.ticket}</strong> at <strong>${data.service}</strong> Desk <strong>${data.desk}</strong>`;
-    div.classList.remove("called"); // stop blinking when confirmed
-  }
-  messagesEl.appendChild(div);
-};
+// Run init on page load
+initDesk();
 </script>
 </body>
 </html>
