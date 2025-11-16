@@ -20,6 +20,7 @@ def ensure_config():
     """
     Check if services and desks are configured.
     If not, ask user for input and update the JSON file.
+    Each desk will have a status field: 'empty' or 'occupied'.
     """
     data = load_data()
 
@@ -29,7 +30,10 @@ def ensure_config():
         for i in range(services_count):
             service = input(f"Enter name for service {i+1}: ").strip().lower()
             desk_count = int(input(f"Enter number of desks for service '{service}': "))
-            data["desks"][service] = [str(d+1) for d in range(desk_count)]
+            # Each desk is stored as a dict with status
+            data["desks"][service] = [
+                {"id": str(d+1), "status": "empty"} for d in range(desk_count)
+            ]
         data["tickets"] = {}
         data["clerks"] = {}
         save_data(data)
@@ -38,3 +42,6 @@ def ensure_config():
         print("Services/desks already configured.")
 
     return data
+
+if __name__ == "__main__":
+    ensure_config()

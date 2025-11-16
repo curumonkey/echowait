@@ -1,0 +1,88 @@
+{
+  "desks": {
+    "deposit": [
+      {
+        "id": "1",
+        "status": "occupied"
+      },
+      {
+        "id": "2",
+        "status": "occupied"
+      },
+      {
+        "id": "3",
+        "status": "occupied"
+      },
+      {
+        "id": "4",
+        "status": "occupied"
+      },
+      {
+        "id": "5",
+        "status": "empty"
+      }
+    ],
+    "withdrawal": [
+      {
+        "id": "1",
+        "status": "empty"
+      },
+      {
+        "id": "2",
+        "status": "empty"
+      },
+      {
+        "id": "3",
+        "status": "empty"
+      },
+      {
+        "id": "4",
+        "status": "empty"
+      },
+      {
+        "id": "5",
+        "status": "empty"
+      },
+      {
+        "id": "6",
+        "status": "empty"
+      },
+      {
+        "id": "7",
+        "status": "empty"
+      }
+    ],
+    "marketing": [
+      {
+        "id": "1",
+        "status": "empty"
+      },
+      {
+        "id": "2",
+        "status": "empty"
+      },
+      {
+        "id": "3",
+        "status": "empty"
+      }
+    ],
+    "support": [
+      {
+        "id": "1",
+        "status": "empty"
+      },
+      {
+        "id": "2",
+        "status": "empty"
+      }
+    ]
+  },
+  "tickets": {
+    "deposit": [
+      {
+        "id": "D-1",
+        "status": "done"
+      }
+    ]
+  }
+}

@@ -2,26 +2,52 @@ import time
 import json
 from typing import List, Dict, Optional, Tuple
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 app = FastAPI()
 
 DATA_FILE = "queue_data.json"
 
 def init_data_file():
-    data = {
-        "desks": {},     # { "deposit": ["1","2"], "withdrawal": ["1"] }
-        "tickets": {}    # { "deposit": [{"id":"D-1","status":"waiting"}, ...] }
+    """
+    Initialize the JSON file if missing or empty.
+    If not empty, verify structure and load without altering existing data.
+    """
+    default_structure = {
+        "desks": {},
+        "tickets": {}
     }
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        # File missing or corrupted → create default
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(default_structure, f, indent=2)
+        return default_structure
+
+    # Verify structure without overwriting existing data
+    if not isinstance(data, dict):
+        return default_structure
+
+    if "desks" not in data or not isinstance(data["desks"], dict):
+        data["desks"] = {}
+
+    if "tickets" not in data or not isinstance(data["tickets"], dict):
+        data["tickets"] = {}
+
+    return data
 
 def load_data():
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"desks": {}, "tickets": {}}
 
 def save_data(data):
-    with open(DATA_FILE, "w") as f:
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
 # Initialize JSON file at server start
@@ -113,32 +139,32 @@ async def kiosk():
 async def clerk_select():
     return HTMLResponse(load_html("clerk_select.html"))
 
-@app.get("/clerk/{service}/{desk}")
-async def clerk_page(service: str, desk: str):
-    data = load_data()
-    if service not in data["desks"]:
-        data["desks"][service] = []
+# @app.get("/clerk/{service}/{desk}")
+# async def clerk_page(service: str, desk: str):
+#     data = load_data()
+#     if service not in data["desks"]:
+#         data["desks"][service] = []
 
-    # Prevent duplicate desk registration
-    if desk in data["desks"][service]:
-        return HTMLResponse(
-            """
-            <script>
-              alert("Desk {desk} for {service} is already registered. Please choose another desk number.");
-              window.location.href = "/clerk";
-            </script>
-            """.format(desk=desk, service=service),
-            status_code=200
-        )
+#     # Prevent duplicate desk registration
+#     if desk in data["desks"][service]:
+#         return HTMLResponse(
+#             """
+#             <script>
+#               alert("Desk {desk} for {service} is already registered. Please choose another desk number.");
+#               window.location.href = "/clerk";
+#             </script>
+#             """.format(desk=desk, service=service),
+#             status_code=200
+#         )
 
-    # Register desk
-    data["desks"][service].append(desk)
-    save_data(data)
+#     # Register desk
+#     data["desks"][service].append(desk)
+#     save_data(data)
 
-    queue_system.set_assigned(service, desk, None)
-    queue_system.set_serving(service, desk, None)
+#     queue_system.set_assigned(service, desk, None)
+#     queue_system.set_serving(service, desk, None)
 
-    return HTMLResponse(load_html("clerk_page.html"))
+#     return HTMLResponse(load_html("clerk_page.html"))
 
 
 @app.get("/display")
@@ -199,6 +225,48 @@ async def next_ticket(service: str = Query(...), desk: str = Query(...)):
     await manager.broadcast(payload)
     return {"status": "ok", "ticket": ticket, "desk": desk}
 
+@app.get("/clerk/{service}/{desk_id}")
+async def clerk_select(service: str, desk_id: str, status: str = None):
+    """
+    Example: /clerk/deposit/4?status=selected
+    """
+    data = load_data()
+
+    # Verify service exists
+    if service not in data["desks"]:
+        return JSONResponse({"error": f"Service '{service}' not found"}, status_code=404)
+
+    # Find desk entry
+    desk_entry = None
+    for desk in data["desks"][service]:
+        if desk["id"] == desk_id:
+            desk_entry = desk
+            break
+
+    if not desk_entry:
+        return JSONResponse({"error": f"Desk {desk_id} not found in service {service}"}, status_code=404)
+
+    # Handle query parameter
+    if status == "selected":
+        if desk_entry["status"] == "empty":
+            desk_entry["status"] = "occupied"
+            save_data(data)
+            # Redirect to explicit occupied route
+            return RedirectResponse(url=f"/clerk/{service}/{desk_id}/occupied")
+        else:
+            # Already occupied → redirect to /clerk
+            return RedirectResponse(url="/clerk")
+
+    # Default response if no status param
+    return JSONResponse({"service": service, "desk": desk_entry})
+
+@app.get("/clerk/{service}/{desk_id}/occupied")
+async def clerk_page(service: str, desk_id: str):
+    """
+    Clerk working page after desk is marked occupied.
+    """
+    # Serve the clerk_page.html file
+    return HTMLResponse(load_html("clerk_page.html"))
 
 @app.get("/confirm")
 async def confirm_ticket(service: str = Query(...), desk: str = Query(...), ticket: str = Query(...)):
